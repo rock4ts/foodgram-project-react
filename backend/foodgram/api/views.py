@@ -117,7 +117,7 @@ class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
         if self.action in ('list', 'retrieve'):
             return GetRecipeSerializer
         if self.action in ('favorite', 'remove_favorite'):
-            return  FavoriteRecipeSerializer
+            return FavoriteRecipeSerializer
         if self.action in ('shopping_cart', 'remove_from_shopping_cart'):
             return ShoplistRecipeSerializer
         return PostRecipeSerializer
