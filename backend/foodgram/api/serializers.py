@@ -169,8 +169,8 @@ class PostRecipeSerializer(serializers.ModelSerializer):
 
     def validate_name(self, data):
         check_name_not_updated = (
-            self.context['request'].method == 'PATCH' and
-            self.instance.name == data
+            self.context['request'].method == 'PATCH'
+            and self.instance.name == data
         )
         if check_name_not_updated:
             return data
