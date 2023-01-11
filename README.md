@@ -1,4 +1,4 @@
-![Foodgram workflow](https://github.com/rock4ts/foogram-project-react/actions/workflows/foodgram_workflow.yaml/badge.svg?event=push)
+![Foodgram workflow](https://github.com/rock4ts/foogram-project-react/actions/workflows/foodgram-workflow.yml/badge.svg?event=push)
 
 # Foodgram web-page
 ## Описание
