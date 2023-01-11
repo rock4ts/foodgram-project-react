@@ -1,4 +1,4 @@
-![Foodgram workflow](https://github.com/rock4ts/foogram-project-react/actions/workflows/foodgram_workflow.yml/badge.svg?event=push)
+![Foodgram workflow](https://github.com/rock4ts/foogram-project-react/actions/workflows/foodgram_workflow.yaml/badge.svg?event=push)
 
 # Foodgram web-page
 ## Описание
@@ -10,7 +10,7 @@
 
 ## Основные инструменты разработки проекта
 * Python 3.9
-* Django 2.2.16
+* Django 2.2.28
 * Django Rest Framework 3.12.4
 * React.js
 * PostgreSQL 13.0-alpine
