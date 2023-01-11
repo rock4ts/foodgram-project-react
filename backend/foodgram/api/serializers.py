@@ -172,8 +172,9 @@ class PostRecipeSerializer(serializers.ModelSerializer):
                 self.instance.name == data):
             return data
         user = self.context['request'].user
-        check_recipe_name = \
+        check_recipe_name = (
             Recipe.objects.filter(name=data, author=user).exists()
+        )
         if check_recipe_name:
             raise serializers.ValidationError(
                 f'У вас уже есть рецепт с названием {data}.'

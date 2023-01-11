@@ -29,13 +29,14 @@ class FoodgramUserViewSet(UserViewSet):
     queryset = User.objects.all().prefetch_related('recipes')
 
     def get_serializer_class(self):
+        serializer_class = super().get_serializer_class()
         if self.action == 'create':
-            return PostFoodgramUserSerializer
+            serializer_class = PostFoodgramUserSerializer
         elif self.action == 'me':
-            return GetFoodgramUserSerializer
+            serializer_class = GetFoodgramUserSerializer
         elif self.action in ("subscriptions", "subscribe", "unsubscribe"):
-            return SubscribeSerializer
-        return super().get_serializer_class()
+            serializer_class = SubscribeSerializer
+        return serializer_class
 
     def get_permissions(self):
         if self.action in (
@@ -113,13 +114,14 @@ class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
     ordering = ('-pub_date',)
 
     def get_serializer_class(self):
+        serializer_class = PostRecipeSerializer
         if self.action in ('list', 'retrieve'):
-            return GetRecipeSerializer
+            serializer_class = GetRecipeSerializer
         elif self.action in ('favorite', 'remove_favorite'):
-            return FavoriteRecipeSerializer
+            serializer_class = FavoriteRecipeSerializer
         elif self.action in ('shopping_cart', 'remove_from_shopping_cart'):
-            return ShoplistRecipeSerializer
-        return PostRecipeSerializer
+            serializer_class = ShoplistRecipeSerializer
+        return serializer_class
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -12,9 +12,9 @@ from users.models import Follow
 
 def annotate_subscribe_status(authors_queryset, follower_object):
     is_subscribed = Follow.objects.filter(
-                follower=follower_object.pk,
-                author=OuterRef('pk')
-            )
+        follower=follower_object.pk,
+        author=OuterRef('pk')
+    )
     annotated_authors = authors_queryset.annotate(
         is_subscribed=Exists(is_subscribed)
     )

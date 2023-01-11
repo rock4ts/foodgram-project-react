@@ -4,7 +4,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = os.getenv(
     'SECRET_KEY',
-    default = '$&05hvdh+2_@*vqnwvtdmwtme90_zpypqq2w2n(e^p=fhzah(!'
+    default='$&05hvdh+2_@*vqnwvtdmwtme90_zpypqq2w2n(e^p=fhzah(!'
 )
 
 DEBUG = os.getenv('DEBUG') == 'True'
@@ -104,7 +104,7 @@ DJOSER = {
 
 }
 
-DEFAULT_AUTO_FIELD='django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 LANGUAGE_CODE = 'en-us'
 
