@@ -63,26 +63,23 @@ sudo docker compose -f docker-compose-foodgram.yaml up -d --build
 ```
 Команда запустит файл *docker-compose-foodgram.yaml*, соберёт образы, cоздаст контейнеры для каждого сервиса и свяжет с томами static_value и media_value директории Nginx и API с данными медиа-файлов и статики.
 
-Теперь в контейнере с API (при сборке ему присвоено имя foodgram_backend) необходимо создать и выполнить миграции, а также собрать статику:
+Теперь в контейнере с API (при сборке ему присвоено имя foodgram_backend) необходимо создать и выполнить миграции:
 ```
-sudo docker compose exec foodgram_backend python manage.py makemigrations
-```
-```
-sudo docker compose exec foodgram_backend python manage.py migrate
+sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python manage.py makemigrations
 ```
 ```
-sudo docker compose exec foodgram_backend python manage.py collectstatic --no-input 
+sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python manage.py migrate
 ```
 
 Чтобы получить доступ к управлению базой данных через админ-зону, создайте суперпользователя:
 ```
-sudo docker compose exec foodgram_backend python manage.py createsuperuser
+sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python manage.py createsuperuser
 ```
 
 Для удобства пользования проект содержит файл с базой данных об ингредиентах для будущих рецептов.
-Для заполнения таблицы выполните команду:
+Заполните таблицу ингредиентов, выполнив команду:
 ```
-sudo docker compose exec foodgram_backend python manage.py from_csv_to_data
+sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python manage.py from_csv_to_data
 ```
 
 Готово! Вы создали копию проекта и не можете использовать его в коммерческих целях :) 
