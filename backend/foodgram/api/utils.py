@@ -15,10 +15,7 @@ def annotate_subscribe_status(authors_queryset, follower_object):
         follower=follower_object.pk,
         author=OuterRef('pk')
     )
-    annotated_authors = authors_queryset.annotate(
-        is_subscribed=Exists(is_subscribed)
-    )
-    return annotated_authors
+    return authors_queryset.annotate(is_subscribed=Exists(is_subscribed))
 
 
 def annotate_favorites_and_shoplist(recipes_qset, user_object):
@@ -30,12 +27,9 @@ def annotate_favorites_and_shoplist(recipes_qset, user_object):
         user=user_object.pk,
         recipe=OuterRef('pk')
     )
-    annotated_recipes = recipes_qset.annotate(
+    return recipes_qset.annotate(
         is_favorited=Exists(is_favorited)
-    ).annotate(
-        is_in_shopping_cart=Exists(is_in_shoplist_cart)
-    )
-    return annotated_recipes
+    ).annotate(is_in_shopping_cart=Exists(is_in_shoplist_cart))
 
 
 def shoplist_to_pdf(shoplist_queryset):

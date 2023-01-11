@@ -29,14 +29,14 @@ class FoodgramUserViewSet(UserViewSet):
     queryset = User.objects.all().prefetch_related('recipes')
 
     def get_serializer_class(self):
-        serializer_class = super().get_serializer_class()
+        
         if self.action == 'create':
-            serializer_class = PostFoodgramUserSerializer
+            return PostFoodgramUserSerializer
         elif self.action == 'me':
-            serializer_class = GetFoodgramUserSerializer
+            return GetFoodgramUserSerializer
         elif self.action in ("subscriptions", "subscribe", "unsubscribe"):
-            serializer_class = SubscribeSerializer
-        return serializer_class
+            return SubscribeSerializer
+        return super().get_serializer_class()
 
     def get_permissions(self):
         if self.action in (
@@ -57,8 +57,7 @@ class FoodgramUserViewSet(UserViewSet):
             queryset = queryset.filter(
                 pk=self.kwargs["id"]
             ).annotate(recipes_count=Count('recipes'))
-        queryset = annotate_subscribe_status(queryset, user)
-        return queryset
+        return annotate_subscribe_status(queryset, user)
 
     @action(['GET'], detail=False)
     def me(self, *args, **kwargs):
@@ -114,14 +113,14 @@ class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
     ordering = ('-pub_date',)
 
     def get_serializer_class(self):
-        serializer_class = PostRecipeSerializer
+
         if self.action in ('list', 'retrieve'):
-            serializer_class = GetRecipeSerializer
+            return GetRecipeSerializer
         elif self.action in ('favorite', 'remove_favorite'):
-            serializer_class = FavoriteRecipeSerializer
+            return  FavoriteRecipeSerializer
         elif self.action in ('shopping_cart', 'remove_from_shopping_cart'):
-            serializer_class = ShoplistRecipeSerializer
-        return serializer_class
+            return ShoplistRecipeSerializer
+        return PostRecipeSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -134,11 +133,7 @@ class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
         apply_prefetches = queryset.prefetch_related(
             prefetch_authors, 'tags', 'ingredients'
         )
-        queryset = annotate_favorites_and_shoplist(
-            apply_prefetches, user
-        )
-
-        return queryset
+        return annotate_favorites_and_shoplist(apply_prefetches, user)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

@@ -168,14 +168,17 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         )
 
     def validate_name(self, data):
-        if (self.context['request'].method == 'PATCH' and
-                self.instance.name == data):
+        check_name_not_updated = (
+            self.context['request'].method == 'PATCH' and
+            self.instance.name == data
+        )
+        if check_name_not_updated:
             return data
         user = self.context['request'].user
-        check_recipe_name = (
+        check_recipe_name_exists = (
             Recipe.objects.filter(name=data, author=user).exists()
         )
-        if check_recipe_name:
+        if check_recipe_name_exists:
             raise serializers.ValidationError(
                 f'У вас уже есть рецепт с названием {data}.'
             )
