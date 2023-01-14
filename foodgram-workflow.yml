@@ -53,7 +53,7 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         passphrase: ${{ secrets.PASSPHRASE }}
         script: |
-          sudo docker compose stop
+          sudo docker compose -f docker-compose-foodgram.yaml stop
           sudo docker compose rm foodgram_backend
           touch .env
           echo DB_ENGINE=${{ secrets.DB_ENGINE }} >> .env

@@ -63,10 +63,8 @@ sudo docker compose -f docker-compose-foodgram.yaml up -d --build
 ```
 Команда запустит файл *docker-compose-foodgram.yaml*, соберёт образы, cоздаст контейнеры для каждого сервиса и свяжет с томами static_value и media_value директории Nginx и API с данными медиа-файлов и статики.
 
-Теперь в контейнере с API (при сборке ему присвоено имя foodgram_backend) необходимо создать и выполнить миграции:
-```
-sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python manage.py makemigrations
-```
+Теперь в контейнере с API (при сборке ему присвоено имя foodgram_backend) необходимо выполнить миграции:
+
 ```
 sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python manage.py migrate
 ```
