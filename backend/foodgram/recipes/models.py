@@ -47,7 +47,12 @@ class Ingredient(models.Model):
     )
 
     class Meta:
-        unique_together = ("name", "measurement_unit")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['name', 'measurement_unit'],
+                name='name_measurement_unit_unique_constraint'
+            )
+        ]
 
     def __str__(self):
         return self.name

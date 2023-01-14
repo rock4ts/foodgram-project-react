@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers
@@ -7,8 +6,8 @@ from rest_framework import serializers
 from recipes.models import (FavoriteRecipe, Ingredient, Recipe,
                             RecipeIngredient, RecipeTag, ShoplistRecipe, Tag)
 from users.models import Follow
-
 from .fields import Base64ImageField
+from .utils import add_ingredients_to_recipe, annotated_recipes
 
 User = get_user_model()
 
@@ -39,6 +38,7 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = fields
 
 
 class SubscribeSerializer(GetFoodgramUserSerializer):
@@ -90,7 +90,7 @@ class SubscribeSerializer(GetFoodgramUserSerializer):
             follow_object = Follow.objects.get(
                 follower=current_user, author=unfollowed_user
             )
-        except ObjectDoesNotExist:
+        except Follow.DoesNotExist:
             raise serializers.ValidationError(
                 {'detail': 'Вы не подписаны на данного автора.'}
             )
@@ -213,8 +213,16 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, recipe_obj):
-        serializer = GetRecipeSerializer(recipe_obj)
-        return serializer.data
+        if self.context['request'].method == 'POST':
+            new_recipe = Recipe.objects.filter(pk=recipe_obj.pk)
+            current_user = self.context.get('request').user
+            new_recipe_annotated = annotated_recipes(
+                new_recipe, current_user, authors_num=1
+            ).first()
+
+            return GetRecipeSerializer(new_recipe_annotated).data
+
+        return GetRecipeSerializer(recipe_obj).data
 
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
@@ -223,62 +231,47 @@ class PostRecipeSerializer(serializers.ModelSerializer):
             **validated_data,
             author=self.context['request'].user
         )
-        for ingredient in ingredients:
-            ingredient_data = dict(ingredient)
-            RecipeIngredient.objects.create(
-                recipe=recipe,
-                ingredient=ingredient['id'],
-                amount=ingredient_data['amount']
-            )
+        add_ingredients_to_recipe(recipe, ingredients)
+        RecipeTag.objects.bulk_create(
+            [RecipeTag(recipe=recipe, tag=tag) for tag in tags]
+        )
 
-        for tag in tags:
-            RecipeTag.objects.create(
-                recipe=recipe, tag=tag
-            )
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop('ingredients')
+        ingredients = validated_data.pop('ingredients')
         tags_data = validated_data.pop('tags')
         super().update(instance, validated_data)
-
         instance.ingredients.clear()
-        for ingredient in ingredients_data:
-            ingredient_data = dict(ingredient)
-            RecipeIngredient.objects.create(
-                recipe=instance,
-                ingredient=ingredient_data['id'],
-                amount=ingredient_data['amount']
-            )
-
+        add_ingredients_to_recipe(instance, ingredients)
         tag_list = []
         for tag in tags_data:
             current_tag = get_object_or_404(Tag, pk=tag.pk)
             tag_list.append(current_tag)
         instance.tags.set(tag_list)
 
-        instance.save()
         return instance
 
 
 class FavoriteRecipeSerializer(ShortRecipeSerializer):
 
-    def validate(self):
+    def validate(self, data):
         user = self.context['request'].user
         recipe = self.context['view'].kwargs.get('pk')
-        check_object = FavoriteRecipe.objects.filter(
+        check_favorite = FavoriteRecipe.objects.filter(
             user=user, recipe=recipe
         ).exists()
-        if self.context['request'].method == 'POST' and check_object:
+        if self.context['request'].method == 'POST' and check_favorite:
             raise serializers.ValidationError(
                 {'detail':
                     'Данный рецепт уже добавлен в раздел любимых рецептов.'}
             )
-        elif self.context['request'].method == 'DELETE' and not check_object:
+        elif self.context['request'].method == 'DELETE' and not check_favorite:
             raise serializers.ValidationError(
                 {'detail':
                     'Данного рецепта нет в разделе любимых рецептов.'}
             )
+        return data
 
     def add_to_favorites(self, *args, **kwargs):
         user = self.context['request'].user
@@ -301,7 +294,7 @@ class FavoriteRecipeSerializer(ShortRecipeSerializer):
 
 class ShoplistRecipeSerializer(ShortRecipeSerializer):
 
-    def validate(self):
+    def validate(self, data):
         user = self.context['request'].user
         recipe = self.context['view'].kwargs.get('pk')
         check_object = ShoplistRecipe.objects.filter(
@@ -315,6 +308,7 @@ class ShoplistRecipeSerializer(ShortRecipeSerializer):
             raise serializers.ValidationError(
                 {'detail': 'Данного рецепта нет в списке покупок.'}
             )
+        return data
 
     def add_to_shoplist(self, *args, **kwargs):
         user = self.context['request'].user

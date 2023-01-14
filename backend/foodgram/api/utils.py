@@ -1,13 +1,25 @@
 from django.conf import settings
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Prefetch
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics, ttfonts
 from reportlab.pdfgen import canvas
 from reportlab.rl_config import TTFSearchPath
 
-from recipes.models import FavoriteRecipe, ShoplistRecipe
-from users.models import Follow
+from recipes.models import FavoriteRecipe, RecipeIngredient, ShoplistRecipe
+from users.models import Follow, User
+
+
+def add_ingredients_to_recipe(recipe, ingredients):
+    RecipeIngredient.objects.bulk_create(
+        [
+            RecipeIngredient(
+                recipe=recipe,
+                ingredient=dict(ingredient)['id'],
+                amount=dict(ingredient)['amount']
+            ) for ingredient in ingredients
+        ]
+    )
 
 
 def annotate_subscribe_status(authors_queryset, follower_object):
@@ -30,6 +42,28 @@ def annotate_favorites_and_shoplist(recipes_qset, user_object):
     return recipes_qset.annotate(
         is_favorited=Exists(is_favorited)
     ).annotate(is_in_shopping_cart=Exists(is_in_shoplist_cart))
+
+
+def annotated_recipes(recipes, current_user, authors_num=None):
+    if authors_num == 1:
+        authors_annotated = Prefetch(
+            'author', queryset=annotate_subscribe_status(
+                User.objects.filter(pk=current_user.pk), current_user
+            )
+        )
+    else:
+        authors_annotated = Prefetch(
+            'author', queryset=annotate_subscribe_status(
+                User.objects.all(), current_user
+            )
+        )
+    recipe_with_prefetches = recipes.prefetch_related(
+        authors_annotated, 'tags', 'ingredients'
+    )
+
+    return annotate_favorites_and_shoplist(
+        recipe_with_prefetches, current_user
+    )
 
 
 def shoplist_to_pdf(shoplist_queryset):

@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Prefetch, Sum
+from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -10,7 +10,6 @@ from rest_framework.response import Response
 
 from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
 from users.models import Follow
-
 from .filters import IngredientFilter, RecipeFilter
 from .mixins import IsAdminOrOwnerMixin
 from .serializers import (FavoriteRecipeSerializer, GetFoodgramUserSerializer,
@@ -18,7 +17,7 @@ from .serializers import (FavoriteRecipeSerializer, GetFoodgramUserSerializer,
                           PostFoodgramUserSerializer, PostRecipeSerializer,
                           ShoplistRecipeSerializer, SubscribeSerializer,
                           TagSerializer)
-from .utils import (annotate_favorites_and_shoplist, annotate_subscribe_status,
+from .utils import (annotate_subscribe_status, annotated_recipes,
                     shoplist_to_pdf)
 
 User = get_user_model()
@@ -124,59 +123,50 @@ class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        user = self.request.user
-        prefetch_authors = Prefetch(
-            'author', queryset=annotate_subscribe_status(
-                User.objects.all(), user
-            )
-        )
-        apply_prefetches = queryset.prefetch_related(
-            prefetch_authors, 'tags', 'ingredients'
-        )
-        return annotate_favorites_and_shoplist(apply_prefetches, user)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
-        new_recipe = get_object_or_404(self.get_queryset(), pk=instance.pk)
-        new_recipe_data = serializer.to_representation(new_recipe)
-        headers = self.get_success_headers(new_recipe_data)
-        return Response(
-            new_recipe_data,
-            status=status.HTTP_201_CREATED,
-            headers=headers
-        )
+        current_user = self.request.user
+        return annotated_recipes(queryset, current_user)
 
     @action(['POST'], detail=True)
     def favorite(self, *args, **kwargs):
         favorite_recipe = self.get_object()
-        serializer = self.get_serializer(instance=favorite_recipe)
-        serializer.validate()
+        serializer = self.get_serializer(
+            instance=favorite_recipe,
+            data=self.request.data
+        )
+        serializer.is_valid(raise_exception=True)
         serializer.add_to_favorites()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @favorite.mapping.delete
     def remove_favorite(self, *args, **kwargs):
         unfavorite_recipe = self.get_object()
-        serializer = self.get_serializer(instance=unfavorite_recipe)
-        serializer.validate()
+        serializer = self.get_serializer(
+            instance=unfavorite_recipe,
+            data=self.request.data
+        )
+        serializer.is_valid(raise_exception=True)
         serializer.remove_from_favorites()
         return Response(serializer.data, status=status.HTTP_204_NO_CONTENT)
 
     @action(['POST'], detail=True)
     def shopping_cart(self, *args, **kwargs):
         shoplist_recipe = self.get_object()
-        serializer = self.get_serializer(instance=shoplist_recipe)
-        serializer.validate()
+        serializer = self.get_serializer(
+            instance=shoplist_recipe,
+            data=self.request.data
+        )
+        serializer.is_valid(raise_exception=True)
         serializer.add_to_shoplist()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @shopping_cart.mapping.delete
     def remove_from_shopping_cart(self, *args, **kwargs):
         removed_recipe = self.get_object()
-        serializer = self.get_serializer(instance=removed_recipe)
-        serializer.validate()
+        serializer = self.get_serializer(
+            instance=removed_recipe,
+            data=self.request.data
+        )
+        serializer.is_valid(raise_exception=True)
         serializer.remove_from_shoplist()
         return Response(serializer.data, status=status.HTTP_204_NO_CONTENT)
 
