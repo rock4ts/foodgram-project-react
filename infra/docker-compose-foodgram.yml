@@ -16,7 +16,7 @@ services:
     - ./.env
 
   foodgram_backend:
-    image: rock4ts/foodgram-api:latest
+    image: rock4ts/foodgram-backend:latest
     restart: always
     volumes:
       - static_value:/app/static/
