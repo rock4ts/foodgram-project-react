@@ -6,7 +6,7 @@
 <br>
 
 Проект доступен по ссылке:
-[158.160.8.237](158.160.8.237)
+[158.160.8.237](158.160.8.237) или [my-foodgram.ddns.net](my-foodgram.ddns.net)
 
 ## Основные инструменты разработки проекта
 * Python 3.9
@@ -85,5 +85,5 @@ sudo docker compose -f docker-compose-foodgram.yaml exec foodgram_backend python
 
 __Детальная информация об эндпоинтах и правах доступа к API проекта доступна по ссылке__:
 ```
-<your_server_name>/api/docs/
+<server_name>/api/docs/
 ```

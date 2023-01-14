@@ -11,7 +11,7 @@ DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = [
     '158.160.8.237',
-    'walkjn.ddns.net',
+    'my-foodgram.ddns.net',
     'localhost',
     '127.0.0.1',
 ]
