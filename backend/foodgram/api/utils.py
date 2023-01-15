@@ -84,7 +84,7 @@ def shoplist_to_pdf(shoplist_queryset):
     for number, item in enumerate(shoplist_queryset, start=1):
         if begin_position_y < 100:
             begin_position_y = 730
-            plane.showpage()
+            plane.showPage()
             plane.setFont('FreeSans', 18)
         plane.drawString(
             begin_position_x,
