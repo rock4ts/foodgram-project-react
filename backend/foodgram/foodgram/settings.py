@@ -112,10 +112,10 @@ USE_L10N = True
 
 USE_TZ = True
 
-STATIC_URL = '/static/django/'
+STATIC_URL = '/static/foodgram/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-MEDIA_URL = '/media/'
+MEDIA_URL = '/media/foodgram/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 AUTH_USER_MODEL = 'users.User'
