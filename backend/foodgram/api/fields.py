@@ -1,5 +1,3 @@
-"""Custom fields for project's serializers"""
-
 import base64
 
 from django.core.files.base import ContentFile
@@ -7,7 +5,10 @@ from rest_framework import serializers
 
 
 class Base64ImageField(serializers.ImageField):
-
+    '''
+    Customises 'to_internal_value' function
+    to decode base64 image string into file.
+    '''
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:image'):
             format, imgstr = data.split(';base64,')

@@ -11,6 +11,9 @@ from users.models import Follow, User
 
 
 def add_ingredients_to_recipe(recipe, ingredients):
+    '''
+    Bulk creates RecipeIngredient objects when recipe is created or updated.
+    '''
     RecipeIngredient.objects.bulk_create(
         [
             RecipeIngredient(
@@ -23,6 +26,7 @@ def add_ingredients_to_recipe(recipe, ingredients):
 
 
 def annotate_subscribe_status(authors_queryset, follower_object):
+    '''Annotates author queryset with authorised user subscribe status.'''
     is_subscribed = Follow.objects.filter(
         follower=follower_object.pk,
         author=OuterRef('pk')
@@ -31,6 +35,10 @@ def annotate_subscribe_status(authors_queryset, follower_object):
 
 
 def annotate_favorites_and_shoplist(recipes_qset, user_object):
+    '''
+    Annotates recipe queryset with favorites and shoplist status
+    for authorised user.
+    '''
     is_favorited = FavoriteRecipe.objects.filter(
         user=user_object.pk,
         recipe=OuterRef('pk')
@@ -45,6 +53,10 @@ def annotate_favorites_and_shoplist(recipes_qset, user_object):
 
 
 def annotated_recipes(recipes, current_user, authors_num=None):
+    '''
+    Annotates recipes with is_favorited and is_in_shoplist markers.
+    Also annotates recipe author with authorised user subscribe status.
+    '''
     if authors_num == 1:
         authors_annotated = Prefetch(
             'author', queryset=annotate_subscribe_status(
@@ -57,16 +69,19 @@ def annotated_recipes(recipes, current_user, authors_num=None):
                 User.objects.all(), current_user
             )
         )
-    recipe_with_prefetches = recipes.prefetch_related(
+    recipes_with_prefetche = recipes.prefetch_related(
         authors_annotated, 'tags', 'ingredients'
     )
-
     return annotate_favorites_and_shoplist(
-        recipe_with_prefetches, current_user
+        recipes_with_prefetche, current_user
     )
 
 
-def shoplist_to_pdf(shoplist_queryset):
+def shoplist_to_pdf(shoplist_ingredients):
+    '''
+    Renders pdf file that contains
+    authorised user shoplist ingredients in human-readable format.
+    '''
     begin_position_x, begin_position_y = 30, 730
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = (
@@ -81,7 +96,7 @@ def shoplist_to_pdf(shoplist_queryset):
         begin_position_x, begin_position_y + 40, 'Список покупок: '
     )
     plane.setFont('FreeSans', 18)
-    for number, item in enumerate(shoplist_queryset, start=1):
+    for number, item in enumerate(shoplist_ingredients, start=1):
         if begin_position_y < 100:
             begin_position_y = 730
             plane.showPage()

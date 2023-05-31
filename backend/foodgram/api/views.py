@@ -28,7 +28,6 @@ class FoodgramUserViewSet(UserViewSet):
     queryset = User.objects.all().prefetch_related('recipes')
 
     def get_serializer_class(self):
-
         if self.action == 'create':
             return PostFoodgramUserSerializer
         if self.action == 'me':
@@ -59,8 +58,8 @@ class FoodgramUserViewSet(UserViewSet):
         return annotate_subscribe_status(queryset, user)
 
     @action(['GET'], detail=False)
-    def me(self, *args, **kwargs):
-        user = self.request.user
+    def me(self, request):
+        user = request.user
         profile_obj = get_object_or_404(self.get_queryset(), pk=user.pk)
         serializer = self.get_serializer(instance=profile_obj)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -93,33 +92,33 @@ class FoodgramUserViewSet(UserViewSet):
 
 
 class TagViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
-    serializer_class = TagSerializer
     queryset = Tag.objects.all()
+    serializer_class = TagSerializer
     pagination_class = None
 
 
 class IngredientViewSet(TagViewSet):
     queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_class = IngredientFilter
-    serializer_class = IngredientSerializer
 
 
 class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
+    serializer_class = PostRecipeSerializer
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
     filterset_class = RecipeFilter
     ordering = ('-pub_date',)
 
     def get_serializer_class(self):
-
         if self.action in ('list', 'retrieve'):
             return GetRecipeSerializer
         if self.action in ('favorite', 'remove_favorite'):
             return FavoriteRecipeSerializer
         if self.action in ('shopping_cart', 'remove_from_shopping_cart'):
             return ShoplistRecipeSerializer
-        return PostRecipeSerializer
+        return super().get_serializer_class()
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -172,6 +171,12 @@ class RecipeViewSet(IsAdminOrOwnerMixin, viewsets.ModelViewSet):
 
     @action(['GET'], detail=False)
     def download_shopping_cart(self, request):
+        '''
+        Builds recipe shoplist ingredients dictionary
+        with accumulated measurement unit values and calls
+        pdf file renderer which return a human-friendly representation
+        of shoplist ingredients.
+        '''
         user = request.user
         ingredients = RecipeIngredient.objects.filter(
             recipe__shoplist_users__user=user.pk

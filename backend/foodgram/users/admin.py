@@ -30,11 +30,12 @@ class AdminUser(UserAdmin):
     list_filter = ("groups",)
     search_fields = ("username", "email")
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (None, {
-            'fields': ('email', 'first_name', 'last_name'),
-        }),
+        (
+            None, {
+                'fields': ('email', 'first_name', 'last_name'),
+            }
+        ),
     )
-
     inlines = [
         FollowersInline,
         FollowingInline,

@@ -33,71 +33,6 @@ class PostFoodgramUserSerializer(UserCreateSerializer):
         )
 
 
-class ShortRecipeSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Recipe
-        fields = ('id', 'name', 'image', 'cooking_time')
-        read_only_fields = fields
-
-
-class SubscribeSerializer(GetFoodgramUserSerializer):
-
-    recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.IntegerField()
-
-    def get_recipes(self, obj):
-        recipes_limit = self.context['request'].query_params.get(
-            'recipes_limit', 3
-        )
-        recipes_to_show = obj.recipes.all()[:int(recipes_limit)]
-        serializer = ShortRecipeSerializer(recipes_to_show, many=True)
-        return serializer.data
-
-    class Meta:
-        model = User
-        fields = (
-            'email', 'id', 'username',
-            'first_name', 'last_name', 'is_subscribed',
-            'recipes', 'recipes_count'
-        )
-
-    def subscribe(self, *args, **kwargs):
-        current_user = self.context['request'].user
-        followed_user = get_object_or_404(
-            User, pk=self.context['view'].kwargs.get('id')
-        )
-        if current_user == followed_user:
-            raise serializers.ValidationError(
-                {'detail': 'Вы не можете подписаться сами на себя.'}
-            )
-        elif Follow.objects.filter(
-            follower=current_user, author=followed_user
-        ).exists():
-            raise serializers.ValidationError(
-                {'detail': 'Вы уже подписаны на данного автора.'}
-            )
-        Follow.objects.create(
-            follower=current_user, author=followed_user
-        )
-
-    def unsubscribe(self, *args, **kwargs):
-        current_user = self.context['request'].user
-        unfollowed_user = get_object_or_404(
-            User, pk=self.context['view'].kwargs.get('id')
-        )
-        try:
-            follow_object = Follow.objects.get(
-                follower=current_user, author=unfollowed_user
-            )
-        except Follow.DoesNotExist:
-            raise serializers.ValidationError(
-                {'detail': 'Вы не подписаны на данного автора.'}
-            )
-        else:
-            follow_object.delete()
-
-
 class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -113,6 +48,11 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 
 class GetRecipeIngredientSerializer(serializers.ModelSerializer):
+    '''
+    Ingredient serialiser used as a nested field in GetRecipeSerializer.
+    Uses RecipeIngredient intermediary model
+    to include amount field to representation.
+    '''
     id = serializers.IntegerField(source='ingredient.pk')
     name = serializers.CharField(source='ingredient.name')
     measurement_unit = serializers.CharField(
@@ -145,11 +85,16 @@ class GetRecipeSerializer(serializers.ModelSerializer):
 
 
 class PostRecipeIngredientSerializer(serializers.Serializer):
+    '''
+    Ingredients serializer used as a child
+    to validate ingredients data in PostRecipeSerializer.
+    '''
     id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
     amount = serializers.IntegerField(min_value=1)
 
 
 class PostRecipeSerializer(serializers.ModelSerializer):
+
     ingredients = serializers.ListField(
         child=PostRecipeIngredientSerializer(),
         allow_empty=False
@@ -168,6 +113,10 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         )
 
     def validate_name(self, data):
+        '''
+        Validates that recipes with identical names can not be created
+        by the same user.
+        '''
         check_name_not_updated = (
             self.context['request'].method == 'PATCH'
             and self.instance.name == data
@@ -185,6 +134,9 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         return data
 
     def validate_ingredients(self, data):
+        '''
+        Validates that there is no duplicate ingredient in the recipe.
+        '''
         unique_ingredients = set()
         duplication_errors = set()
         for item in data:
@@ -199,6 +151,9 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         return data
 
     def validate_tags(self, data):
+        '''
+        Validates that there is no duplicate tag attached to the recipe.
+        '''
         unique_tags = set()
         duplication_errors = set()
         for item in data:
@@ -213,15 +168,18 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         return data
 
     def to_representation(self, recipe_obj):
+        '''
+        Annotates represenatation of newly created recipe
+        with is_favorited and is_in_shoplist markers.
+        Also annotates recipe author with current user subscribe status.
+        '''
         if self.context['request'].method == 'POST':
             new_recipe = Recipe.objects.filter(pk=recipe_obj.pk)
             current_user = self.context.get('request').user
             new_recipe_annotated = annotated_recipes(
                 new_recipe, current_user, authors_num=1
             ).first()
-
             return GetRecipeSerializer(new_recipe_annotated).data
-
         return GetRecipeSerializer(recipe_obj).data
 
     def create(self, validated_data):
@@ -235,31 +193,40 @@ class PostRecipeSerializer(serializers.ModelSerializer):
         RecipeTag.objects.bulk_create(
             [RecipeTag(recipe=recipe, tag=tag) for tag in tags]
         )
-
         return recipe
 
     def update(self, instance, validated_data):
         ingredients = validated_data.pop('ingredients')
-        tags_data = validated_data.pop('tags')
         super().update(instance, validated_data)
         instance.ingredients.clear()
         add_ingredients_to_recipe(instance, ingredients)
-        tag_list = []
-        for tag in tags_data:
-            current_tag = get_object_or_404(Tag, pk=tag.pk)
-            tag_list.append(current_tag)
-        instance.tags.set(tag_list)
-
         return instance
+
+
+class ShortRecipeSerializer(serializers.ModelSerializer):
+    '''
+    Short version of get GetRecipeSerializer, used as parent class for
+    FavoriteRecipeSerializer and ShoplistRecipeSerializer
+    to indicate fields required for adding or removing recipe objects from
+    favorites and shoplist catalogs.
+    Also used to represent recipes on subscriptions page.
+    '''
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = fields
 
 
 class FavoriteRecipeSerializer(ShortRecipeSerializer):
 
     def validate(self, data):
+        '''
+        Validate that recipe is not in favorites when added to
+        or recipe is in favorites when deleted from it.
+        '''
         user = self.context['request'].user
-        recipe = self.context['view'].kwargs.get('pk')
         check_favorite = FavoriteRecipe.objects.filter(
-            user=user, recipe=recipe
+            user=user, recipe=self.instance
         ).exists()
         if self.context['request'].method == 'POST' and check_favorite:
             raise serializers.ValidationError(
@@ -275,30 +242,27 @@ class FavoriteRecipeSerializer(ShortRecipeSerializer):
 
     def add_to_favorites(self, *args, **kwargs):
         user = self.context['request'].user
-        recipe = get_object_or_404(
-            Recipe, pk=self.context['view'].kwargs.get('pk')
-        )
         FavoriteRecipe.objects.create(
-            user=user, recipe=recipe
+            user=user, recipe=self.instance
         )
 
     def remove_from_favorites(self):
         user = self.context.get('request').user
-        recipe = get_object_or_404(
-            Recipe, pk=self.context['view'].kwargs.get('pk')
-        )
         get_object_or_404(
-            FavoriteRecipe, user=user, recipe=recipe
+            FavoriteRecipe, user=user, recipe=self.instance
         ).delete()
 
 
 class ShoplistRecipeSerializer(ShortRecipeSerializer):
 
     def validate(self, data):
+        '''
+        Validate that recipe is not in shoplist when added to
+        or recipe is in favorites when deleted from it.
+        '''
         user = self.context['request'].user
-        recipe = self.context['view'].kwargs.get('pk')
         check_object = ShoplistRecipe.objects.filter(
-            user=user, recipe=recipe
+            user=user, recipe=self.instance
         ).exists()
         if self.context['request'].method == 'POST' and check_object:
             raise serializers.ValidationError(
@@ -312,18 +276,68 @@ class ShoplistRecipeSerializer(ShortRecipeSerializer):
 
     def add_to_shoplist(self, *args, **kwargs):
         user = self.context['request'].user
-        recipe = get_object_or_404(
-            Recipe, pk=self.context['view'].kwargs.get('pk')
-        )
         ShoplistRecipe.objects.create(
-            user=user, recipe=recipe
+            user=user, recipe=self.instance
         )
 
     def remove_from_shoplist(self, *args, **kwargs):
         user = self.context['request'].user
-        recipe = get_object_or_404(
-            Recipe, pk=self.context['view'].kwargs.get('pk')
-        )
         get_object_or_404(
-            ShoplistRecipe, user=user, recipe=recipe
+            ShoplistRecipe, user=user, recipe=self.instance
         ).delete()
+
+
+class SubscribeSerializer(GetFoodgramUserSerializer):
+
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField()
+
+    class Meta:
+        model = User
+        fields = (
+            'email', 'id', 'username',
+            'first_name', 'last_name', 'is_subscribed',
+            'recipes', 'recipes_count'
+        )
+
+    def get_recipes(self, obj):
+        '''
+        Limits returned recipes to three items for each followed user.
+        '''
+        recipes_limit = self.context['request'].query_params.get(
+            'recipes_limit', 3
+        )
+        recipes_to_show = obj.recipes.all()[:int(recipes_limit)]
+        serializer = ShortRecipeSerializer(recipes_to_show, many=True)
+        return serializer.data
+
+    def subscribe(self, *args, **kwargs):
+        current_user = self.context['request'].user
+        followed_user = self.instance
+        if current_user == followed_user:
+            raise serializers.ValidationError(
+                {'detail': 'Вы не можете подписаться сами на себя.'}
+            )
+        elif Follow.objects.filter(
+            follower=current_user, author=followed_user
+        ).exists():
+            raise serializers.ValidationError(
+                {'detail': 'Вы уже подписаны на данного автора.'}
+            )
+        Follow.objects.create(
+            follower=current_user, author=followed_user
+        )
+
+    def unsubscribe(self, *args, **kwargs):
+        current_user = self.context['request'].user
+        unfollowed_user = self.instance
+        try:
+            follow_object = Follow.objects.get(
+                follower=current_user, author=unfollowed_user
+            )
+        except Follow.DoesNotExist:
+            raise serializers.ValidationError(
+                {'detail': 'Вы не подписаны на данного автора.'}
+            )
+        else:
+            follow_object.delete()

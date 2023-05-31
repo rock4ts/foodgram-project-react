@@ -7,7 +7,8 @@ from .validators import username_validator
 
 class User(AbstractUser):
     username = models.CharField(
-        unique=True, max_length=150, verbose_name='Имя пользователя',
+        max_length=150,
+        unique=True,
         validators=[
             RegexValidator(
                 regex=r'^[\w.@+-]+$',
@@ -16,20 +17,26 @@ class User(AbstractUser):
                     'digits and @/./+/-/_'
                 ),
             ),
-            username_validator,
-        ]
+            username_validator
+        ],
+        verbose_name='Имя пользователя'
     )
     password = models.CharField(
-        max_length=150, verbose_name="Пароль"
+        max_length=150,
+        verbose_name="Пароль"
     )
     email = models.EmailField(
-        max_length=254, verbose_name="Электронная почта", unique=True
+        max_length=254,
+        unique=True,
+        verbose_name="Электронная почта"
     )
     first_name = models.CharField(
-        max_length=150, verbose_name="Имя"
+        max_length=150,
+        verbose_name="Имя"
     )
     last_name = models.CharField(
-        max_length=150, verbose_name="Фамилия"
+        max_length=150,
+        verbose_name="Фамилия"
     )
 
     def __str__(self):
@@ -54,11 +61,11 @@ class Follow(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["follower", "author"],
-                name="unique_follow_constraint"
+                name="unique follow constraint"
             ),
             models.CheckConstraint(
                 check=~models.Q(follower=models.F("author")),
-                name="self_follow_constraint"
+                name="self follow constraint"
             )
         ]
 
